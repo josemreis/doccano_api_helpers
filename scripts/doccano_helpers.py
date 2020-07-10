@@ -66,12 +66,13 @@ def upload_file(client, project_id, file_path, file_format = "json", is_labeled 
             pass
     if file_format == "csv" and is_labeled == False:
         current_labels = labels_df(doccano_client, 1)
-        if len(current_labels) > len(existing_labels):
+        if len(current_labels['text'].tolist()) > len(existing_labels):
             ## remove the additional label
             label_id = current_labels.id[~current_labels.text.isin(existing_labels)].iloc[0]
-            delete_label(doccano_client, project_id = 1, label_id = label_id)
-            if len(current_labels) > len(existing_labels):
-                print("Additional label presente, double-check! double-check if on purpose")
+            delete_label(doccano_client, project_id = 1, label_id = label_id)    
+            current_labels = labels_df(doccano_client, 1)
+            if len(current_labels['text'].tolist()) > len(existing_labels):
+                print("Additional label present, double-check! double-check if on purpose")
             
 ### pull_docs
 ## its helpers
