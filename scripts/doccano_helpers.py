@@ -37,7 +37,43 @@ def upload_file(client, project_id, file_path, file_format = "json"):
     """ Upload file(s) to project """
     client.post_doc_upload(project_id, file_format, os.path.basename(file_path), os.path.dirname(file_path))
 
-## pull_docs
+### pull_docs
+## its helpers
+# flatten metadata
+def flatten_listOfDicts(normalized_json, var, key):
+    """flatten a list of dictionaries as """
+    df_list = []
+    for index, row in normalized_json.iterrows():
+        # turn to dict
+        if type(row[var]) == str:
+            meta_dict = ast.literal_eval(row[var])
+        elif len(row[var]) > 0:
+            meta_dict = row[var]
+        else:
+            meta_dict = None
+        
+        if meta_dict != None:
+            ## turn to df
+            cur_df = pd.DataFrame(meta_dict, index = [0])
+            ## add id var for 
+            cur_df[key] = row[key]
+            df_list.append(cur_df)
+    ## all in one, add prefix to cols, and return
+    return pd.concat(df_list)
+
+# turn decanno list of docs into pandas
+def doccano2pandas(docs_raw):
+    """get the json file with the docs, flatten, and turn to pandas df"""
+    ##  flatten the annotations and meta collumns
+    flat_anno = flatten_listOfDicts(docs_raw, "annotations", "id")
+    flat_meta = flatten_listOfDicts(docs_raw, "meta", "id")
+    # left merge the flattened dfs
+    first_merge = flat_meta.merge(flat_anno, on = "id", how = "left")
+    ## left join it with the main df
+    final_merge = docs_raw.drop(columns = ['annotations', "meta"]).merge(first_merge, on = "id", how = "left")        
+    return final_merge
+
+## main: pull docs
 def pull_docs(client, project, limit, offset, just_labeled = False):
     """
     Pull all docs from doccano. Tries to get all in one, if failing uses pagination.
@@ -81,51 +117,3 @@ def pull_docs(client, project, limit, offset, just_labeled = False):
         out = final_df
     return out
     
-
-
-## flatten metadata
-def flatten_listOfDicts(normalized_json, var, key):
-    """flatten a list of dictionaries as """
-    df_list = []
-    for index, row in normalized_json.iterrows():
-        # turn to dict
-        if type(row[var]) == str:
-            meta_dict = ast.literal_eval(row[var])
-        elif len(row[var]) > 0:
-            meta_dict = row[var]
-        else:
-            meta_dict = None
-        
-        if meta_dict != None:
-            ## turn to df
-            cur_df = pd.DataFrame(meta_dict, index = [0])
-            ## add id var for 
-            cur_df[key] = row[key]
-            df_list.append(cur_df)
-    ## all in one, add prefix to cols, and return
-    return pd.concat(df_list)
-
-## turn decanno list of docs into pandas
-def doccano2pandas(docs_raw):
-    """get the json file with the docs, flatten, and turn to pandas df"""
-    ##  flatten the annotations and meta collumns
-    flat_anno = flatten_listOfDicts(docs_raw, "annotations", "id")
-    flat_meta = flatten_listOfDicts(docs_raw, "meta", "id")
-    # left merge the flattened dfs
-    first_merge = flat_meta.merge(flat_anno, on = "id", how = "left")
-    ## left join it with the main df
-    final_merge = docs_raw.drop(columns = ['annotations', "meta"]).merge(first_merge, on = "id", how = "left")        
-    return final_merge
-
-        
-## list all documents and return as pandas
-def docs_df(client, project, limit, offset):
-    
-    ## get the document list
-    doc_dict = doccano_client.get_document_list(project_id = 1)
-    doc_count = doc_dict['count']
-    nxt_page = doc_dict['next']
-    docs_raw  = doc_dict['results']
-    ## list documents as pandas
-
-# ....
