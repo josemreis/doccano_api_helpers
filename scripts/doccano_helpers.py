@@ -10,12 +10,11 @@ import os
 import pandas as pd
 from pandas.io.json import json_normalize
 import ast
-import numpy as np
-
+import re
 
 #### Main functions
 ## log in to the deccano's api 
-def log_in(username = 'josemreis', pswrd_path = "/home/jmr/Desktop/decanno_access.txt"):
+def log_in(username = 'josemreis', pswrd_path):
     """instantiate a client and log in"""
     # instantiate a client and log in to a Doccano instance
     pswrd = open(pswrd_path, 'r').read().splitlines()[0]
@@ -58,7 +57,7 @@ def flatten_listOfDicts(normalized_json, var, key):
             ## add id var for 
             cur_df[key] = row[key]
             df_list.append(cur_df)
-    ## all in one, add prefix to cols, and return
+    ## all in one and return
     return pd.concat(df_list)
 
 # turn decanno list of docs into pandas
@@ -74,9 +73,10 @@ def doccano2pandas(docs_raw):
     return final_merge
 
 ## main: pull docs
-def pull_docs(client, project, limit, offset, just_labeled = False):
+def pull_docs(client, project, limit, offset, just_labeled = False, just_to_label = False):
     """
     Pull all docs from doccano. Tries to get all in one, if failing uses pagination.
+    Finally, it flattens the dictionary and turns it into a pandas df.
     """
     # quickly get a doc count
     docs_all = client.get_document_list(project_id = 1)['count']
@@ -111,9 +111,29 @@ def pull_docs(client, project, limit, offset, just_labeled = False):
     ## wrangle
     # flattening and tidying
     final_df = doccano2pandas(docs_raw = docs_raw)
+    # filter labeled, to label, or all
     if just_labeled:
         out = final_df[final_df.label.notnull()]
+    elif just_to_label: 
+        out = final_df[final_df.label.isnull()]
     else:
         out = final_df
     return out
-    
+
+## delete documents
+def delete_docs(client, project_id, document_id, delete_all = False):
+    """delete a document from doccanos database"""
+    if delete_all:
+        if isinstance(document_id, list) == False:
+            raise Exception('For deleting all docs, you need to provide a list of docs as integers')
+        # confirm with user input
+        answer = input("Are you sure you want to permanently delete all docs?[y/n] ")
+        if answer == "y":
+            # start the loop
+            for doc_id in document_id:
+                # delete it
+                print("deleting doc: " + str(doc_id))
+                client.delete_document(project_id = 1, document_id = doc_id)
+    else:
+        # by doc id
+        client.delete_document(project_id = 1, document_id = document_id)
