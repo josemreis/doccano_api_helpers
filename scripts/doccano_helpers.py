@@ -15,7 +15,7 @@ import os
 
 #### Main functions
 ## log in to the deccano's api 
-def log_in(username = 'josemreis', pswrd_path):
+def log_in(username, pswrd_path):
     """instantiate a client and log in"""
     # instantiate a client and log in to a Doccano instance
     pswrd = open(pswrd_path, 'r').read().splitlines()[0]
