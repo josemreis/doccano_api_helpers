@@ -11,6 +11,7 @@ import pandas as pd
 from pandas.io.json import json_normalize
 import ast
 import re
+import os
 
 #### Main functions
 ## log in to the deccano's api 
@@ -34,8 +35,19 @@ def log_in(username = 'josemreis', pswrd_path):
 ## uplad file
 def upload_file(client, project_id, file_path, file_format = "json"):
     """ Upload file(s) to project """
-    client.post_doc_upload(project_id, file_format, os.path.basename(file_path), os.path.dirname(file_path))
-
+    if isinstance(file_path, list):
+        ## add several individual files
+        for cur_path in file_path:
+            try:
+                client.post_doc_upload(project_id, file_format, os.path.basename(file_path), os.path.dirname(file_path))
+            except:
+                pass
+    else:
+        # single doc        
+        try:
+            client.post_doc_upload(project_id, file_format, os.path.basename(file_path), os.path.dirname(file_path))
+        except:
+            pass
 ### pull_docs
 ## its helpers
 # flatten metadata
@@ -123,6 +135,7 @@ def pull_docs(client, project, limit, offset, just_labeled = False, just_to_labe
 ## delete documents
 def delete_docs(client, project_id, document_id, delete_all = False):
     """delete a document from doccanos database"""
+    # delete all docs
     if delete_all:
         if isinstance(document_id, list) == False:
             raise Exception('For deleting all docs, you need to provide a list of docs as integers')
@@ -134,6 +147,11 @@ def delete_docs(client, project_id, document_id, delete_all = False):
                 # delete it
                 print("deleting doc: " + str(doc_id))
                 client.delete_document(project_id = 1, document_id = doc_id)
+    # delete a specific doc
     else:
-        # by doc id
         client.delete_document(project_id = 1, document_id = document_id)
+
+## labels_df
+def labels_df(client, project_id):
+    """get labels info as pandas df"""
+    return json_normalize(client.get_label_list(project_id = project_id))
