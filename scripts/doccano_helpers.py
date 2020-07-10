@@ -32,9 +32,25 @@ def log_in(username = 'josemreis', pswrd_path):
         print("login failed")
     return doccano_client
 
+## labels_df
+def labels_df(client, project_id):
+    """get labels info as pandas df"""
+    return json_normalize(client.get_label_list(project_id = project_id))
+
+## Delete a label
+def delete_label(client, project_id, label_id):
+    """http DELETE request given project and label id"""
+    doccano_client.session.delete(doccano_client.baseurl + "v1/projects/{project_id}/labels/{label_id}".format(project_id = project_id, label_id = label_id))
+
 ## uplad file
-def upload_file(client, project_id, file_path, file_format = "json"):
-    """ Upload file(s) to project """
+def upload_file(client, project_id, file_path, file_format = "json", is_labeled = False):
+    """ Upload file(s) to project.
+        If is_labeled = False and file_format = csv, it will erase all labels which are not equal to the existing ones before the calling.
+        Rationale being that in the csv cases we are requested to provide a label.
+    """
+    ## retrieve existing labels before the upload
+    existing_labels = labels_df(doccano_client, 1)['text'].tolist()
+    ## several docs
     if isinstance(file_path, list):
         ## add several individual files
         for cur_path in file_path:
@@ -48,6 +64,15 @@ def upload_file(client, project_id, file_path, file_format = "json"):
             client.post_doc_upload(project_id, file_format, os.path.basename(file_path), os.path.dirname(file_path))
         except:
             pass
+    if file_format == "csv" and is_labeled == False:
+        current_labels = labels_df(doccano_client, 1)
+        if len(current_labels) > len(existing_labels):
+            ## remove the additional label
+            label_id = current_labels.id[~current_labels.text.isin(existing_labels)].iloc[0]
+            delete_label(doccano_client, project_id = 1, label_id = label_id)
+            if len(current_labels) > len(existing_labels):
+                print("Additional label presente, double-check! double-check if on purpose")
+            
 ### pull_docs
 ## its helpers
 # flatten metadata
@@ -151,7 +176,3 @@ def delete_docs(client, project_id, document_id, delete_all = False):
     else:
         client.delete_document(project_id = 1, document_id = document_id)
 
-## labels_df
-def labels_df(client, project_id):
-    """get labels info as pandas df"""
-    return json_normalize(client.get_label_list(project_id = project_id))
