@@ -15,13 +15,13 @@ import os
 
 #### Main functions
 ## log in to the deccano's api 
-def log_in(username, pswrd_path):
+def log_in(baseurl, username, pswrd_path):
     """instantiate a client and log in"""
     # instantiate a client and log in to a Doccano instance
     pswrd = open(pswrd_path, 'r').read().splitlines()[0]
     # instantiate a client and log in to a Doccano instance
     doccano_client = DoccanoClient(
-        'https://label-ecthr.herokuapp.com',
+        baseurl,
         username,
         pswrd 
     )
@@ -95,7 +95,9 @@ def flatten_listOfDicts(normalized_json, var, key):
             cur_df = pd.DataFrame(meta_dict, index = [0])
             ## add id var for 
             cur_df[key] = row[key]
-            df_list.append(cur_df)
+        else:
+            cur_df = pd.DataFrame([[None, row[key]]], columns = [var, key])
+        df_list.append(cur_df)
     ## all in one and return
     return pd.concat(df_list)
 
