@@ -44,9 +44,10 @@ def delete_label(client, project_id, label_id):
 
 ## uplad file
 def upload_file(client, project_id, file_path, file_format = "json", is_labeled = False):
-    """ Upload file(s) to project.
-        If is_labeled = False and file_format = csv, it will erase all labels which are not equal to the existing ones before the calling.
-        Rationale being that in the csv cases we are requested to provide a label.
+    """ 
+    Upload file(s) to project.
+    If is_labeled = False and file_format = csv, it will erase all labels which are not equal to the existing ones before the calling.
+    Rationale being that in the csv cases we are requested to provide a label.
     """
     ## retrieve existing labels before the upload
     existing_labels = labels_df(doccano_client, 1)['text'].tolist()
@@ -111,10 +112,12 @@ def doccano2pandas(docs_raw):
     return final_merge
 
 ## main: pull docs
-def pull_docs(client, project, limit, offset, just_labeled = False, just_to_label = False):
+def pull_docs(client, project_id, subset = None):
     """
     Pull all docs from doccano. Tries to get all in one, if failing uses pagination.
     Finally, it flattens the dictionary and turns it into a pandas df.
+    
+        * subset (str); takes either the "labeled" or "not labeled"
     """
     # quickly get a doc count
     docs_all = client.get_document_list(project_id = 1)['count']
@@ -149,13 +152,21 @@ def pull_docs(client, project, limit, offset, just_labeled = False, just_to_labe
     ## wrangle
     # flattening and tidying
     final_df = doccano2pandas(docs_raw = docs_raw)
-    # filter labeled, to label, or all
-    if just_labeled:
-        out = final_df[final_df.label.notnull()]
-    elif just_to_label: 
-        out = final_df[final_df.label.isnull()]
-    else:
+    # subset
+    if final_df == None:
         out = final_df
+    elif isinstance(final_df, str):
+        if subset == "labeled":
+            # just labeled docs
+            out = final_df[final_df.label.notnull()]
+        elif subset == "not labeled":
+            # just docs to label
+            out = final_df[final_df.label.isnull()]
+        else:
+            raise TypeError('subset (str) takes either "labeled" or "not labeled" strings')
+    else:
+        ## wrong type
+        raise TypeError('subset (str) takes either "labeled" or "not labeled" strings')
     return out
 
 ## delete documents
