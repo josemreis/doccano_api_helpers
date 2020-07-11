@@ -153,7 +153,7 @@ def pull_docs(client, project_id, subset = None):
     # flattening and tidying
     final_df = doccano2pandas(docs_raw = docs_raw)
     # subset
-    if final_df == None:
+    if subset == None:
         out = final_df
     elif isinstance(final_df, str):
         if subset == "labeled":
