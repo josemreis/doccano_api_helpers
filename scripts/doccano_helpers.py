@@ -118,69 +118,37 @@ def doccano2pandas(docs_raw):
     final_merge = docs_raw.drop(columns = ['annotations', "meta"]).merge(first_merge, on = "id", how = "left")        
     return final_merge
 
-## main: pull docs
-def pull_docs(client, project_id, subset = None):
+## main: pull_all_docs
+def pull_all_docs(client, project_id):
     """
     Pull all docs from doccano. Tries to get all in one, if failing uses pagination.
     Finally, it flattens the dictionary and turns it into a pandas df.
-    
-        * subset (str); takes either the "labeled" or "not labeled"
     """
-    # quickly get a doc count
-    docs_all = client.get_document_list(project_id = project_id)['count']
-    print("\n>> Pulling " + str(docs_all) + " docs from docanno\n\n")
-    ## pull all in one
-    nope = False
-    try:
-        doc_dict = client.exp_get_doc_list(project_id = 1, limit = docs_all, offset = 0)
-        # check if we retrieved all
-        cur_counts = doc_dict['count'] 
-        next_page = doc_dict['next']
-        docs_raw  = json_normalize(doc_dict['results'])
-    except:
-        nope = True
-    ## if there are still docs missing, limit might be too large
     # sequentially retrieve it using pagination
-    if nope == True or cur_counts != docs_all and next_page != None:
-        ## starting values
-        offset = 0
-        limit = 4000
-        df = pd.DataFrame()
-        next_page = "start..."
-        while next_page != None:
-            ## pull
-            doc_dict = client.exp_get_doc_list(project_id = 1, limit = limit, offset = offset)
-            # check if we retrieved all
-            cur_counts = doc_dict['count'] 
+    ## starting values
+    offset = 0
+    limit = 1000
+    df = pd.DataFrame()
+    next_page = "fooh"
+    while next_page:
+        ## pull
+        doc_dict = client.exp_get_doc_list(project_id = 1, limit = limit, offset = offset)
+        # check if we retrieved all
+        try:
             next_page = doc_dict['next']
-            docs_raw  = json_normalize(doc_dict['results'])
-            print(next_page)
-            ## get the data and row bind it
-            df = pd.concat([df, json_normalize(doc_dict['results'])])
+        except:
+            pass
+        docs_raw  = json_normalize(doc_dict['results'])
+        ## cleaning it up
+        cleaned = doccano2pandas(docs_raw = docs_raw)
+        ## get the data and row bind it
+        df = pd.concat([df, cleaned])
+        if isinstance(next_page, str):
             # prep the next limit and offset
-            pattern_limit = re.compile("(?<=limit\=).+?(?=&)")
-            limit = pattern_limit.findall(next_page)[0]
             pattern_offset = re.compile("(?<=offset\=).+?$")
-            offset = pattern_limit.findall(next_page)[0]                        
-    ## wrangle
-    # flattening and tidying
-    final_df = doccano2pandas(docs_raw = docs_raw)
-    # subset
-    if subset == None:
-        out = final_df
-    elif isinstance(final_df, str):
-        if subset == "labeled":
-            # just labeled docs
-            out = final_df[final_df.label.notnull()]
-        elif subset == "not labeled":
-            # just docs to label
-            out = final_df[final_df.label.isnull()]
-        else:
-            raise TypeError('subset (str) takes either "labeled" or "not labeled" strings')
-    else:
-        ## wrong type
-        raise TypeError('subset (str) takes either "labeled" or "not labeled" strings')
-    return out
+            offset = pattern_offset.findall(next_page)[0]    
+            print("pulling docs from " + next_page + "\n")                      
+    return df
 
 ## get labeled docs
 def get_labeled_docs(client, project_id):
