@@ -165,7 +165,7 @@ def get_labeled_docs(client, project_id):
         return "no data retrieved"
 
 ## delete documents
-def delete_docs(client, project_id, document_id, delete_all = False):
+def delete_docs(client, project_id, document_id = None, delete_all = False):
     """delete a document from doccanos database. 
         * document id can be either one document id (str) or several (list)
     """
@@ -176,14 +176,27 @@ def delete_docs(client, project_id, document_id, delete_all = False):
         # confirm with user input
         answer = input("Are you sure you want to permanently delete all docs?[y/n] ")
         if answer == "y":
+            # get the available doc ids
+            to_delete = pull_all_docs(doccano_client, project_id = 1).id.tolist()
             # start the loop
-            for doc_id in document_id:
+            for doc_id in to_delete:
                 # delete it
                 print("deleting doc: " + str(doc_id))
                 client.delete_document(project_id = 1, document_id = doc_id)
     # delete a specific doc
     else:
-        client.delete_document(project_id = 1, document_id = document_id)
+        if isinstance(document_id, list):
+            # start the loop
+            for doc_id in document_id:
+                # delete it
+                print("deleting doc: " + str(doc_id))
+                client.delete_document(project_id = 1, document_id = doc_id)
+                
+        elif isinstance(document_id, str):
+            # delete it
+            client.delete_document(project_id = 1, document_id = document_id)
+        else:
+            raise TypeError('you need at least one valid document id or a list of valid document ids')
 
 ## annotate_docs
 def annotate_docs(client, project_id, label_id, document_id):
