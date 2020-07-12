@@ -133,16 +133,17 @@ def pull_all_docs(client, project_id):
     while next_page:
         ## pull
         doc_dict = client.exp_get_doc_list(project_id = 1, limit = limit, offset = offset)
-        # check if we retrieved all
-        try:
-            next_page = doc_dict['next']
-        except:
-            pass
+        # parse the results
         docs_raw  = json_normalize(doc_dict['results'])
         ## cleaning it up
         cleaned = doccano2pandas(docs_raw = docs_raw)
         ## get the data and row bind it
         df = pd.concat([df, cleaned])
+        ## get the next page, existing...
+        try:
+            next_page = doc_dict['next']
+        except:
+            pass
         if isinstance(next_page, str):
             # prep the next limit and offset
             pattern_offset = re.compile("(?<=offset\=).+?$")
@@ -160,7 +161,6 @@ def get_labeled_docs(client, project_id):
         return parsed
     else:
         return "no data retrieved"
-
 
 ## delete documents
 def delete_docs(client, project_id, document_id, delete_all = False):
@@ -180,4 +180,30 @@ def delete_docs(client, project_id, document_id, delete_all = False):
     # delete a specific doc
     else:
         client.delete_document(project_id = 1, document_id = document_id)
+
+## annotate_docs
+def annotate_docs(client, project_id, label_id, document_id):
+    """
+    annotate documents. 
+        * document id can be either one document id (str) or several (list)
+        * label id can be either one label id (str) or several (list). To get label ids, see "labels_df()"
+    """
+    if isinstance(document_id, str):
+        # annotate
+        client.add_annotation(project_id = project_id, annotation_id = label_id, document_id = document_id)
+    elif isinstance(document_id, list):
+        ## varying labels
+        if isinstance(label_id, list) and len(set(label_id)) > 1:
+            # start the loop
+            for doc, label in zip(document_id, label_id):
+                # annotate
+                client.add_annotation(project_id = project_id, annotation_id = label, document_id = doc)
+        ## all labels are the same
+        else:
+            ## start the loop
+            for doc in document_id:
+                # annotate
+                client.add_annotation(project_id = project_id, annotation_id = label_id, document_id = doc)         
+    else:
+        raise TypeError('you need at least one valid document id or a list of valid document ids')
 
