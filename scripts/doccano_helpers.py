@@ -52,22 +52,25 @@ def upload_file(client, project_id, file_path, is_labeled = False):
     ## retrieve existing labels before the upload
     existing_labels = labels_df(client, 1)['text'].tolist()
     ## get the file format
-    file_format = re.compile("(?<=\\.).+?$").findall(file_path)
     ## several docs
     if isinstance(file_path, list):
         ## add several individual files
         for cur_path in file_path:
             try:
-                client.post_doc_upload(project_id, file_format, os.path.basename(file_path), os.path.dirname(file_path))
+                file_format = re.compile("(?<=\\.).+?$").findall(cur_path)
+                client.post_doc_upload(project_id, file_format[0], os.path.basename(cur_path), os.path.dirname(cur_path))
+                print(cur_path + " uploaded!\n")
             except:
                 pass
     else:
         # single doc        
-        try:
-            client.post_doc_upload(project_id, file_format, os.path.basename(file_path), os.path.dirname(file_path))
+        try:        
+            file_format = re.compile("(?<=\\.).+?$").findall(file_path)
+            client.post_doc_upload(project_id, file_format[0], os.path.basename(file_path), os.path.dirname(file_path))
         except:
             pass
-    if file_format == "csv" and is_labeled == False:
+        
+    if file_format[0] == "csv" and is_labeled == False:
         current_labels = labels_df(client, 1)
         if len(current_labels['text'].tolist()) > len(existing_labels):
             ## remove the additional label
@@ -124,21 +127,26 @@ def pull_docs(client, project_id, subset = None):
         * subset (str); takes either the "labeled" or "not labeled"
     """
     # quickly get a doc count
-    docs_all = client.get_document_list(project_id = 1)['count']
+    docs_all = client.get_document_list(project_id = project_id)['count']
     print("\n>> Pulling " + str(docs_all) + " docs from docanno\n\n")
     ## pull all in one
-    doc_dict = client.exp_get_doc_list(project_id = 1, limit = docs_all, offset = 0)
-    # check if we retrieved all
-    cur_counts = doc_dict['count'] 
-    next_page = doc_dict['next']
-    docs_raw  = json_normalize(doc_dict['results'])
+    nope = False
+    try:
+        doc_dict = client.exp_get_doc_list(project_id = 1, limit = docs_all, offset = 0)
+        # check if we retrieved all
+        cur_counts = doc_dict['count'] 
+        next_page = doc_dict['next']
+        docs_raw  = json_normalize(doc_dict['results'])
+    except:
+        nope = True
     ## if there are still docs missing, limit might be too large
     # sequentially retrieve it using pagination
-    if cur_counts != docs_all and next_page != None:
+    if nope == True or cur_counts != docs_all and next_page != None:
         ## starting values
         offset = 0
-        limit = 1000
+        limit = 4000
         df = pd.DataFrame()
+        next_page = "start..."
         while next_page != None:
             ## pull
             doc_dict = client.exp_get_doc_list(project_id = 1, limit = limit, offset = offset)
@@ -146,12 +154,13 @@ def pull_docs(client, project_id, subset = None):
             cur_counts = doc_dict['count'] 
             next_page = doc_dict['next']
             docs_raw  = json_normalize(doc_dict['results'])
+            print(next_page)
             ## get the data and row bind it
             df = pd.concat([df, json_normalize(doc_dict['results'])])
             # prep the next limit and offset
-            pattern_limit = re.compile("(?<=limit=).+?(?=&)")
+            pattern_limit = re.compile("(?<=limit\=).+?(?=&)")
             limit = pattern_limit.findall(next_page)[0]
-            pattern_offset = re.compile("(?<=offset=).+?$")
+            pattern_offset = re.compile("(?<=offset\=).+?$")
             offset = pattern_limit.findall(next_page)[0]                        
     ## wrangle
     # flattening and tidying
