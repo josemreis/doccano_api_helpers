@@ -155,6 +155,8 @@ def pull_all_docs(client, project_id):
 def get_labeled_docs(client, project_id):
     ## download the csv containing the labeled docs
     resp = client.get_doc_download(1, "csv")
+    # raise error depending on http response
+    resp.raise_for_status()
     ## parse csv into pandas
     parsed = pd.read_csv(io.StringIO(resp.text))
     if parsed == "pandas.core.frame.DataFrame":
@@ -164,7 +166,9 @@ def get_labeled_docs(client, project_id):
 
 ## delete documents
 def delete_docs(client, project_id, document_id, delete_all = False):
-    """delete a document from doccanos database"""
+    """delete a document from doccanos database. 
+        * document id can be either one document id (str) or several (list)
+    """
     # delete all docs
     if delete_all:
         if isinstance(document_id, list) == False:
