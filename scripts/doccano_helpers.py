@@ -182,6 +182,18 @@ def pull_docs(client, project_id, subset = None):
         raise TypeError('subset (str) takes either "labeled" or "not labeled" strings')
     return out
 
+## get labeled docs
+def get_labeled_docs(client, project_id):
+    ## download the csv containing the labeled docs
+    resp = client.get_doc_download(1, "csv")
+    ## parse csv into pandas
+    parsed = pd.read_csv(io.StringIO(resp.text))
+    if parsed == "pandas.core.frame.DataFrame":
+        return parsed
+    else:
+        return "no data retrieved"
+
+
 ## delete documents
 def delete_docs(client, project_id, document_id, delete_all = False):
     """delete a document from doccanos database"""
