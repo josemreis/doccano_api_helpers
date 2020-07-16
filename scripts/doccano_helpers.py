@@ -12,9 +12,10 @@ from pandas.io.json import json_normalize
 import ast
 import re
 import os
+import io
 
 #### Main functions
-## log in to the deccano's api 
+## log in to the deccano's api
 def log_in(baseurl, username, pswrd_path):
     """instantiate a client and log in"""
     # instantiate a client and log in to a Doccano instance
@@ -23,7 +24,7 @@ def log_in(baseurl, username, pswrd_path):
     doccano_client = DoccanoClient(
         baseurl,
         username,
-        pswrd 
+        pswrd
     )
     ## check if all went well
     if len(doccano_client.get_me()) == 6:
@@ -44,7 +45,7 @@ def delete_label(client, project_id, label_id):
 
 ## uplad file
 def upload_file(client, project_id, file_path, is_labeled = False):
-    """ 
+    """
     Upload file(s) to project.
     If is_labeled = False and file_format = csv, it will erase all labels which are not equal to the existing ones before the calling.
     Rationale being that in the csv cases we are requested to provide a label.
@@ -63,23 +64,23 @@ def upload_file(client, project_id, file_path, is_labeled = False):
             except:
                 pass
     else:
-        # single doc        
-        try:        
+        # single doc
+        try:
             file_format = re.compile("(?<=\\.).+?$").findall(file_path)
             client.post_doc_upload(project_id, file_format[0], os.path.basename(file_path), os.path.dirname(file_path))
         except:
             pass
-        
+
     if file_format[0] == "csv" and is_labeled == False:
         current_labels = labels_df(client, 1)
         if len(current_labels['text'].tolist()) > len(existing_labels):
             ## remove the additional label
             label_id = current_labels.id[~current_labels.text.isin(existing_labels)].iloc[0]
-            delete_label(client, project_id = 1, label_id = label_id)    
+            delete_label(client, project_id = 1, label_id = label_id)
             current_labels = labels_df(client, 1)
             if len(current_labels['text'].tolist()) > len(existing_labels):
                 print("Additional label present, double-check! double-check if on purpose")
-            
+
 ### pull_docs
 ## its helpers
 # flatten metadata
@@ -94,11 +95,11 @@ def flatten_listOfDicts(normalized_json, var, key):
             meta_dict = row[var]
         else:
             meta_dict = None
-        
+
         if meta_dict != None:
             ## turn to df
             cur_df = pd.DataFrame(meta_dict, index = [0])
-            ## add id var for 
+            ## add id var for
             cur_df[key] = row[key]
         else:
             cur_df = pd.DataFrame([[None, row[key]]], columns = [var, key])
@@ -115,7 +116,7 @@ def doccano2pandas(docs_raw):
     # left merge the flattened dfs
     first_merge = flat_meta.merge(flat_anno, on = "id", how = "left")
     ## left join it with the main df
-    final_merge = docs_raw.drop(columns = ['annotations', "meta"]).merge(first_merge, on = "id", how = "left")        
+    final_merge = docs_raw.drop(columns = ['annotations', "meta"]).merge(first_merge, on = "id", how = "left")
     return final_merge
 
 ## main: pull_all_docs
@@ -147,8 +148,8 @@ def pull_all_docs(client, project_id):
         if isinstance(next_page, str):
             # prep the next limit and offset
             pattern_offset = re.compile("(?<=offset\=).+?$")
-            offset = pattern_offset.findall(next_page)[0]    
-            print("pulling docs from " + next_page + "\n")                      
+            offset = pattern_offset.findall(next_page)[0]
+            print("pulling docs from " + next_page + "\n")
     return df
 
 ## get labeled docs
@@ -159,14 +160,15 @@ def get_labeled_docs(client, project_id):
     resp.raise_for_status()
     ## parse csv into pandas
     parsed = pd.read_csv(io.StringIO(resp.text))
-    if parsed == "pandas.core.frame.DataFrame":
+    if isinstance(parsed, pd.core.frame.DataFrame):
         return parsed
     else:
         return "no data retrieved"
 
 ## delete documents
 def delete_docs(client, project_id, document_id = None, delete_all = False):
-    """delete a document from doccanos database. 
+    """
+    delete a document from doccanos database.
         * document id can be either one document id (str) or several (list)
     """
     # delete all docs
@@ -191,7 +193,7 @@ def delete_docs(client, project_id, document_id = None, delete_all = False):
                 # delete it
                 print("deleting doc: " + str(doc_id))
                 client.delete_document(project_id = 1, document_id = doc_id)
-                
+
         elif isinstance(document_id, str):
             # delete it
             client.delete_document(project_id = 1, document_id = document_id)
@@ -201,7 +203,7 @@ def delete_docs(client, project_id, document_id = None, delete_all = False):
 ## annotate_docs
 def annotate_docs(client, project_id, label_id, document_id):
     """
-    annotate documents. 
+    annotate documents.
         * document id can be either one document id (str) or several (list)
         * label id can be either one label id (str) or several (list). To get label ids, see "labels_df()"
     """
@@ -220,7 +222,6 @@ def annotate_docs(client, project_id, label_id, document_id):
             ## start the loop
             for doc in document_id:
                 # annotate
-                client.add_annotation(project_id = project_id, annotation_id = label_id, document_id = doc)         
+                client.add_annotation(project_id = project_id, annotation_id = label_id, document_id = doc)
     else:
         raise TypeError('you need at least one valid document id or a list of valid document ids')
-
